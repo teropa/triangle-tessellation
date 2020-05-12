@@ -41,7 +41,7 @@ The arguments are:
 The return value is an object of two properties, together representing an indexed mesh geometry suitable for 3D rendering:
 
 - `vertices` - an array of points
-- `faces` - an array of triangle faces, expressed as indexes into the `vertices` array.
+- `faces` - an array of triangle faces, expressed as indexes into the `vertices` array. The faces will be in counterclockwise winding order based on the normal of the input triangle.
 
 ## Example
 
@@ -87,4 +87,3 @@ console.log(faces);
 - [OpenGL tessellation shader spec](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_tessellation_shader.txt). This library implements the section "2.X.2.1, Triangle Tessellation"
 - [Tessellation in the OpenGL Wiki](https://www.khronos.org/opengl/wiki/Tessellation)
 - [A useful Stack Overflow answer](https://stackoverflow.com/a/37648093)
-

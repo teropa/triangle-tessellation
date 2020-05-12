@@ -21,6 +21,9 @@ export function tessellateTriangle(
         innerLevel = 1 + 1e-6;
     }
 
+    // Normal vector of the plane formed by the triangle
+    let planeNormal = normalizeV3(crossV3(subV3(v, u), subV3(w, u)));
+
     // Start by subdividing the outer edges according to the inner tessellation level
     let rings: Vector3[][][] = [
         [
@@ -82,9 +85,9 @@ export function tessellateTriangle(
         let [outerRingUVVertexIndices, outerRingVWVertexIndices, outerRingWUVertexIndices] = ringVertexIndices[i];
         let [innerRingUVVertexIndices, innerRingVWVertexIndices, innerRingWUVertexIndices] = ringVertexIndices[i + 1];
 
-        generateFacesBetween(outerRingUVVertexIndices, innerRingUVVertexIndices, faces);
-        generateFacesBetween(outerRingVWVertexIndices, innerRingVWVertexIndices, faces);
-        generateFacesBetween(outerRingWUVertexIndices, innerRingWUVertexIndices, faces);
+        generateFacesBetween(outerRingUVVertexIndices, innerRingUVVertexIndices, vertices, planeNormal, faces);
+        generateFacesBetween(outerRingVWVertexIndices, innerRingVWVertexIndices, vertices, planeNormal, faces);
+        generateFacesBetween(outerRingWUVertexIndices, innerRingWUVertexIndices, vertices, planeNormal, faces);
     }
 
     // Generate triangles to fill the innermost ring
@@ -97,20 +100,20 @@ export function tessellateTriangle(
         innermostWUVertexIndices.length === 2
     ) {
         // Innermost ring has no subdivisions; use it as a triangle as-is
-        faces.push([innermostUVVertexIndices[0], innermostVWVertexIndices[0], innermostWUVertexIndices[0]]);
+        faces.push(buildFace(innermostUVVertexIndices[0], innermostVWVertexIndices[0], innermostWUVertexIndices[0], vertices, planeNormal));
     } else {
         // Innermost triagle is subdivided, generate faces between all the points on the ring and the centerpoint
         let centerVertex = multiplyScalarV3(addV3(addV3(u, v), w), 1 / 3);
         vertices.push(centerVertex);
         let centerVertexIdx = vertices.length - 1;
         for (let i = 0; i < innermostUVVertexIndices.length - 1; i++) {
-            faces.push([innermostUVVertexIndices[i], innermostUVVertexIndices[i + 1], centerVertexIdx]);
+            faces.push(buildFace(innermostUVVertexIndices[i], innermostUVVertexIndices[i + 1], centerVertexIdx, vertices, planeNormal));
         }
         for (let i = 0; i < innermostVWVertexIndices.length - 1; i++) {
-            faces.push([innermostVWVertexIndices[i], innermostVWVertexIndices[i + 1], centerVertexIdx]);
+            faces.push(buildFace(innermostVWVertexIndices[i], innermostVWVertexIndices[i + 1], centerVertexIdx, vertices, planeNormal));
         }
         for (let i = 0; i < innermostWUVertexIndices.length - 1; i++) {
-            faces.push([innermostWUVertexIndices[i], innermostWUVertexIndices[i + 1], centerVertexIdx]);
+            faces.push(buildFace(innermostWUVertexIndices[i], innermostWUVertexIndices[i + 1], centerVertexIdx, vertices, planeNormal));
         }
     }
 
@@ -209,20 +212,33 @@ function intersectLines(c: Vector3, e: Vector3, d: Vector3, f: Vector3) {
     }
 }
 
-function generateFacesBetween(outerVertexIndices: number[], innerVertexIndices: number[], faces: Face3[]) {
+function generateFacesBetween(outerVertexIndices: number[], innerVertexIndices: number[], vertices: Vector3[], normal: Vector3, faces: Face3[]) {
     let outerEdge = true;
     let outerIdx = 0;
     let innerIdx = 0;
     while (outerIdx < outerVertexIndices.length - 1 || innerIdx < innerVertexIndices.length - 1) {
         if (outerEdge && outerIdx < outerVertexIndices.length - 1) {
-            faces.push([outerVertexIndices[outerIdx], outerVertexIndices[outerIdx + 1], innerVertexIndices[innerIdx]]);
+            faces.push(buildFace(outerVertexIndices[outerIdx], outerVertexIndices[outerIdx + 1], innerVertexIndices[innerIdx], vertices, normal));
             outerIdx++;
         } else if (!outerEdge && innerIdx < innerVertexIndices.length - 1) {
-            faces.push([innerVertexIndices[innerIdx], innerVertexIndices[innerIdx + 1], outerVertexIndices[outerIdx]]);
+            faces.push(buildFace(innerVertexIndices[innerIdx], innerVertexIndices[innerIdx + 1], outerVertexIndices[outerIdx], vertices, normal));
             innerIdx++;
         }
         outerEdge = !outerEdge;
     }
+}
+
+function buildFace(a: number, b: number, c: number, vertices: Vector3[], normal: Vector3): Face3 {
+    if (isCCW(vertices[a], vertices[b], vertices[c], normal)) {
+        return [a, b, c];
+    } else {
+        return [a, c, b];
+    }
+}
+
+function isCCW(a: Vector3, b: Vector3, c: Vector3, normal: Vector3) {
+    let triNormal = crossV3(subV3(b, a), subV3(c, a));
+    return dotV3(triNormal, normal) > 0;
 }
 
 function addV3(a: Vector3, b: Vector3): Vector3 {
